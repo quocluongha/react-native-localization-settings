@@ -17,26 +17,12 @@ RCT_EXPORT_MODULE()
     return [[locale languageCode] stringByAppendingFormat:@"-%@", [currentLocale countryCode]];
 }
 
--(NSString*) getUserLocale {
-    NSArray* locales = [[NSUserDefaults standardUserDefaults] objectForKey:@"AppleLanguages"];
-    if (locales == nil ) { return nil; }
-    if ([locales count] == 0) { return nil; }
-
-    NSString* userLocale = locales[0];
-    return userLocale;
-}
-
 /**
  * Get current language
  * returns string in IETF BCP 47 (language-COUNTRY "pl-PL")
  **/
 - (NSString *)getCurrentLanguage {
-    NSString *userLocale = [self getUserLocale];
-    if (userLocale) {
-        return userLocale;
-        
-    }
-    return [[NSLocale preferredLanguages] objectAtIndex:0];
+    return [self getLanguageTag:[[[NSBundle mainBundle] preferredLocalizations] objectAtIndex:0]];
 }
 
 /**
@@ -51,8 +37,44 @@ RCT_EXPORT_MODULE()
 }
 
 /**
- * Expose functions to react-native
+ * Expose constants to react-native
  **/
+- (NSDictionary *)constantsToExport
+{
+    return @{ @"language": [self getCurrentLanguage]};
+}
++(BOOL)requiresMainQueueSetup
+{
+    return YES;
+}
+
+#ifdef RCT_NEW_ARCH_ENABLED
+
+// New architecture
+
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+    (const facebook::react::ObjCTurboModule::InitParams &)params
+{
+    return std::make_shared<facebook::react::NativeLocalizationSettingsSpecJSI>(params);
+}
+
+- (facebook::react::ModuleConstants<JS::NativeLocalizationSettings::Constants::Builder>)getConstants {
+  return [self constantsToExport];
+}
+
+- (void)getLanguage:(RCTPromiseResolveBlock)resolve 
+            reject:(RCTPromiseRejectBlock)reject {
+    resolve([self getCurrentLanguage]);
+}
+
+- (void)setLanguage:(NSString *)lang {
+    [self setCurrentLanguage:lang];
+}
+
+#else
+
+// Old architecture
+
 RCT_REMAP_METHOD(getLanguage,
                  withResolver:(RCTPromiseResolveBlock)resolve
                  withReject:(RCTPromiseRejectBlock)reject)
@@ -66,25 +88,6 @@ RCT_REMAP_METHOD(setLanguage,
     [self setCurrentLanguage:lang];
 }
 
-/**
- * Expose constants to react-native
- **/
-- (NSDictionary *)constantsToExport
-{
-    return @{ @"language": [self getCurrentLanguage]};
-}
-+(BOOL)requiresMainQueueSetup
-{
-    return YES;
-}
-
-// Don't compile this code when we build for the old architecture.
-#ifdef RCT_NEW_ARCH_ENABLED
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
-{
-    return std::make_shared<facebook::react::NativeLocalizationSettingsSpecJSI>(params);
-}
 #endif
 
 @end
